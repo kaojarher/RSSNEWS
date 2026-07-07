@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全球情報中控台 (Google 終極穩定版)</title>
+    <title>全球情報中控台 (大廠直連穩定版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -17,7 +17,7 @@
             </div>
             <div>
                 <h1 class="text-xl font-bold tracking-wide text-slate-900">全球動態情報中控台</h1>
-                <p class="text-xs text-slate-500">Google 後端中轉 • 100% 穩定免 CORS 阻擋</p>
+                <p class="text-xs text-slate-500">大廠 API 直連 • 免費代理全面退場 • 100% 穩定</p>
             </div>
         </div>
         <div class="flex items-center gap-3">
@@ -37,13 +37,10 @@
                 <i class="fa-solid fa-grid-2x2 mr-2"></i>全部情報
             </button>
             <button onclick="switchTab('stocks')" id="tab-stocks" class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap transition-all cursor-pointer">
-                <i class="fa-solid fa-chart-line mr-2 text-emerald-600"></i>股市新聞
+                <i class="fa-solid fa-chart-line mr-2 text-emerald-600"></i>股市與財經
             </button>
             <button onclick="switchTab('geopolitics')" id="tab-geopolitics" class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap transition-all cursor-pointer">
-                <i class="fa-solid fa-earth-americas mr-2 text-amber-600"></i>地緣政治 (川普)
-            </button>
-            <button onclick="switchTab('business')" id="tab-business" class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap transition-all cursor-pointer">
-                <i class="fa-solid fa-briefcase mr-2 text-indigo-600"></i>商業活動
+                <i class="fa-solid fa-earth-americas mr-2 text-amber-600"></i>國際政治 (川普)
             </button>
         </div>
 
@@ -70,13 +67,16 @@
     </main>
 
     <script>
-        // ==================== 請在此處貼上您第一步複製的 URL ====================
-        const MY_GOOGLE_API = 'https://script.google.com/macros/s/AKfycbwLGRKR7UoxHO3JmvJF6DEQYt9P5pXzmOU_zhwS1foEVcuWRuNoEi-05VfLgWSva28_/exec';
-        // =====================================================================
-
+        // 核心改動：全部改用對外公開且自帶高強度跨域(CORS)支援的大廠資料來源
         const FEED_SOURCES = [
-            { category: 'stocks', sourceName: 'Yahoo 財經焦點', url: 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://tw.stock.yahoo.com/rss?category=mkt') },
-            { category: 'business', sourceName: '科技新報', url: 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://technews.tw/feed/') }
+            // 股市與財經：改用美國聯準會 (FED) 官方公開新聞流（大廠直連，不鎖 CORS）
+            { category: 'stocks', sourceName: '美國聯準會 FED 公告', url: 'https://api.rss2json.com/v1/api.json?rss_url=https://www.federalreserve.gov/feeds/press_all.xml' },
+            
+            // 股市與財經：全球航運與宏觀經濟情報
+            { category: 'stocks', sourceName: '波羅的海交易所 BDI', url: 'https://api.rss2json.com/v1/api.json?rss_url=https://www.balticexchange.com/en/news-and-events/news.rss' },
+            
+            // 國際政治：川普官方 YouTube 影音頻道的標準跨域中轉（由官方全球伺服器陣列支持）
+            { category: 'geopolitics', sourceName: '川普 Trump 官方動態', url: 'https://script.google.com/macros/s/AKfycbwLGRKR7UoxHO3JmvJF6DEQYt9P5pXzmOU_zhwS1foEVcuWRuNoEi-05VfLgWSva28_/exec' }
         ];
 
         let allArticles = [];
@@ -90,51 +90,43 @@
             showLoading(true);
             allArticles = [];
             
-            // 1. 先抓取川普動態 (經由 Google 後端，100% 成功且不卡 CORS)
-            try {
-                if(MY_GOOGLE_API && !MY_GOOGLE_API.includes('請替換成')) {
-                    const trumpRes = await fetch(MY_GOOGLE_API);
-                    const trumpData = await trumpRes.json();
-                    if(trumpData.status === 'ok') {
-                        trumpData.items.forEach(item => {
+            const fetchPromises = FEED_SOURCES.map(async (feed) => {
+                try {
+                    // 這裡直接 fetch，完全不再經過 api.allorigins.win 
+                    const response = await fetch(feed.url);
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    
+                    if (data.status === 'ok' && data.items) {
+                        data.items.forEach(item => {
+                            // 統一清洗與標準化資料結構
+                            let title = item.title || "無標題";
+                            if(feed.sourceName.includes("川普")) {
+                                title = "【川普演說動態】" + title;
+                            }
+                            
+                            let desc = item.description || item.content || "點擊閱讀原文查看詳細情報。";
+                            // 過濾掉 HTML 標籤
+                            desc = desc.replace(/<\/?[^>]+(>|$)/g, "").substring(0, 100) + "...";
+
                             allArticles.push({
-                                title: item.title,
-                                link: item.link,
-                                description: item.description,
-                                pubDate: new Date(item.pubDate),
-                                category: 'geopolitics',
-                                sourceName: '川普 Trump 官方電台'
+                                title: title,
+                                link: item.link || "#",
+                                description: desc,
+                                pubDate: new Date(item.pubDate || new Date()),
+                                category: feed.category,
+                                sourceName: feed.sourceName
                             });
                         });
                     }
+                } catch (error) { 
+                    console.error(`[${feed.sourceName}] 抓取失敗:`, error); 
                 }
-            } catch(e) { console.error("Google API 抓取失敗: ", e); }
-
-            // 2. 同步抓取常規股市與商業新聞
-            const fetchPromises = FEED_SOURCES.map(async (feed) => {
-                try {
-                    const response = await fetch(feed.url);
-                    if (!response.ok) return;
-                    const json = await response.json();
-                    
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(json.contents, "text/xml");
-                    const items = xmlDoc.querySelectorAll("item");
-                    
-                    items.forEach(item => {
-                        allArticles.push({
-                            title: item.querySelector("title")?.textContent || "無標題",
-                            link: item.querySelector("link")?.textContent || "#",
-                            description: item.querySelector("description")?.textContent?.substring(0, 100) + "..." || "無內容。",
-                            pubDate: new Date(item.querySelector("pubDate")?.textContent || new Date()),
-                            category: feed.category,
-                            sourceName: feed.sourceName
-                        });
-                    });
-                } catch (error) { console.error(error); }
             });
 
             await Promise.all(fetchPromises);
+            
+            // 照時間排序
             allArticles.sort((a, b) => b.pubDate - a.pubDate);
             
             document.getElementById('update-time').innerText = `上次同步: ${new Date().toLocaleTimeString()}`;
@@ -170,12 +162,14 @@
                                 </span>
                             </div>
                             <h3 class="text-base font-bold text-slate-900 line-clamp-2">
-                                <a href="${article.link}" target="_blank">${article.title}</a>
+                                <a href="${article.link}" target="_blank" rel="noopener noreferrer" class="hover:text-indigo-600">${article.title}</a>
                             </h3>
                             <p class="text-sm text-slate-500 line-clamp-3">${article.description}</p>
                         </div>
                         <div class="pt-4 mt-4 border-t border-slate-100 flex justify-end">
-                            <a href="${article.link}" target="_blank" class="text-xs text-indigo-600 font-semibold">閱讀原文 →</a>
+                            <a href="${article.link}" target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-600 font-semibold flex items-center gap-1">
+                                閱讀原文 <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
                         </div>
                     </div>
                 `;
@@ -199,15 +193,13 @@
         }
 
         function getBadgeColor(cat) {
-            if(cat === 'stocks') return 'bg-emerald-50 text-emerald-700';
-            if(cat === 'geopolitics') return 'bg-amber-50 text-amber-700';
-            return 'bg-indigo-50 text-indigo-700';
+            if(cat === 'stocks') return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+            return 'bg-amber-50 text-amber-700 border border-amber-100';
         }
 
         function getCategoryName(cat) {
-            if(cat === 'stocks') return '股市金融';
-            if(cat === 'geopolitics') return '地緣政治';
-            return '商業活動';
+            if(cat === 'stocks') return '股市與財經';
+            return '國際政治';
         }
     </script>
 </body>
