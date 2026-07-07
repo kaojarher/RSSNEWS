@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全球情報中控台 (繁中翻譯直連版)</title>
-    <!-- 使用 Tailwind CSS 進行精美排版 -->
+    <title>全球情報中控台 (川普與盟友直連版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- 引入 FontAwesome 圖標 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-[#f8fafc] text-slate-800 min-h-screen font-sans">
@@ -19,7 +17,7 @@
             </div>
             <div>
                 <h1 class="text-xl font-bold tracking-wide text-slate-900">全球動態情報中控台</h1>
-                <p class="text-xs text-slate-500">大廠 API 直連 · 免費代理全面退場 · 100% 穩定 (全分類繁中編譯)</p>
+                <p class="text-xs text-slate-500">川普核心陣營直連版 · 福斯新聞 · 馬斯克動態 · 聯準會公告 (繁中自動編譯)</p>
             </div>
         </div>
         <div class="flex items-center gap-3">
@@ -35,19 +33,18 @@
         <!-- 分類頁籤列 -->
         <div class="flex border-b border-slate-200 gap-2 overflow-x-auto pb-px">
             <button onclick="switchTab('all')" id="tab-all" class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-indigo-600 text-indigo-600 whitespace-nowrap cursor-pointer">全部情報</button>
-            <button onclick="switchTab('stocks')" id="tab-stocks" class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap cursor-pointer">
-                <i class="fa-solid fa-chart-line mr-1"></i> 股市與財經
-            </button>
             <button onclick="switchTab('geopolitics')" id="tab-geopolitics" class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap cursor-pointer">
-                <i class="fa-solid fa-earth-asia mr-1"></i> 國際政治 (川普)
+                <i class="fa-solid fa-flag-usa mr-1"></i> 國際政治 (川普陣營 & 福斯)
+            </button>
+            <button onclick="switchTab('stocks')" id="tab-stocks" class="tab-btn px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-chart-line mr-1"></i> 股市與財經 (FED)
             </button>
         </div>
 
         <!-- 讀取中骨架屏動畫 -->
         <div id="loading-state" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="bg-white border border-slate-200 rounded-xl p-5 animate-pulse space-y-4 shadow-sm"><div class="h-4 bg-slate-200 rounded w-1/4"></div><div class="h-6 bg-slate-200 rounded w-3/4"></div><div class="h-4 bg-slate-200 rounded w-full"></div></div>
-            <div class="bg-white border border-slate-200 rounded-xl p-5 animate-pulse space-y-4 shadow-sm"><div class="h-4 bg-slate-200 rounded w-1/4"></div><div class="h-6 bg-slate-200 rounded w-3/4"></div><div class="h-4 bg-slate-200 rounded w-full"></div></div>
-            <div class="bg-white border border-slate-200 rounded-xl p-5 animate-pulse space-y-4 shadow-sm"><div class="h-4 bg-slate-200 rounded w-1/4"></div><div class="h-6 bg-slate-200 rounded w-3/4"></div><div class="h-4 bg-slate-200 rounded w-full"></div></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-5 animate-pulse space-y-4 shadow-sm"><div class="h-4 bg-slate-200 rounded w-1/4"></div><div class="h-6 bg-slate-200 rounded w-3/4"></div></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-5 animate-pulse space-y-4 shadow-sm"><div class="h-4 bg-slate-200 rounded w-1/4"></div><div class="h-6 bg-slate-200 rounded w-3/4"></div></div>
         </div>
 
         <!-- 卡片容器 -->
@@ -67,7 +64,6 @@
         let allArticles = [];
         let currentTab = 'all';
 
-        // 網頁開啟時自動執行首次同步
         document.addEventListener('DOMContentLoaded', () => {
             fetchAllFeeds();
         });
@@ -83,7 +79,6 @@
                     return;
                 }
                 
-                // 向後端請求已翻譯、整合完畢的 JSON 數據
                 const response = await fetch(MY_GOOGLE_API);
                 const data = await response.json();
                 
@@ -94,10 +89,9 @@
                     }));
                 }
             } catch(e) { 
-                console.error("同步失敗，請檢查 API 網址與 Google 權限是否開啟為 Anyone: ", e); 
+                console.error("同步失敗: ", e); 
             }
 
-            // 按時間由新到舊排序
             allArticles.sort((a, b) => b.pubDate - a.pubDate);
             document.getElementById('update-time').innerText = `上次同步: ${new Date().toLocaleTimeString()}`;
             showLoading(false);
@@ -109,7 +103,6 @@
             const emptyState = document.getElementById('empty-state');
             container.innerHTML = '';
 
-            // 依據當前選擇的頁籤過濾資料
             const filtered = currentTab === 'all' ? allArticles : allArticles.filter(a => a.category === currentTab);
             
             if (filtered.length === 0) {
@@ -122,10 +115,8 @@
             container.classList.remove('hidden');
 
             filtered.forEach(article => {
-                const badgeColor = getBadgeColor(article.category);
-                const categoryName = getCategoryName(article.category);
+                const badgeColor = getBadgeColor(article.sourceName);
                 
-                // 格式化日期顯示為本地格式
                 const formattedTime = article.pubDate.toLocaleDateString('zh-TW', {
                     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
                 });
@@ -135,7 +126,7 @@
                         <div class="space-y-3">
                             <div class="flex justify-between items-center text-xs">
                                 <span class="px-2.5 py-1 rounded-full font-semibold ${badgeColor}">
-                                    ${categoryName} · ${article.sourceName}
+                                    ${article.sourceName}
                                 </span>
                                 <span class="text-slate-400 flex items-center gap-1">
                                     <i class="fa-regular fa-clock"></i> ${formattedTime}
@@ -147,7 +138,7 @@
                             <p class="text-sm text-slate-500 line-clamp-3 leading-relaxed">${article.description}</p>
                         </div>
                         <div class="pt-4 mt-4 border-t border-slate-100 flex justify-end">
-                            <a href="${article.link}" target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-600 font-semibold hover:underline">閱讀原文 <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a>
+                            <a href="${article.link}" target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-600 font-semibold hover:underline">閱讀原文 →</a>
                         </div>
                     </div>
                 `;
@@ -155,7 +146,6 @@
             });
         }
 
-        // 分類頁籤切換切換
         function switchTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -166,22 +156,17 @@
             renderArticles();
         }
 
-        // 控制讀取狀態顯示
         function showLoading(isLoading) {
             document.getElementById('loading-state').classList.toggle('hidden', !isLoading);
             document.getElementById('news-container').classList.toggle('hidden', isLoading);
         }
 
-        // 取得分類標籤顏色
-        function getBadgeColor(cat) {
-            if(cat === 'stocks') return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-            return 'bg-amber-50 text-amber-700 border border-amber-200';
-        }
-
-        // 取得分類中文名稱
-        function getCategoryName(cat) {
-            if(cat === 'stocks') return '股市與財經';
-            return '國際政治';
+        // 根據不同媒體來源給予專屬的精美標籤顏色
+        function getBadgeColor(source) {
+            if(source.includes('川普')) return 'bg-red-50 text-red-700 border border-red-200';
+            if(source.includes('馬斯克')) return 'bg-slate-900 text-white border border-slate-800';
+            if(source.includes('福斯')) return 'bg-blue-50 text-blue-800 border border-blue-200';
+            return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
         }
     </script>
 </body>
